@@ -2,9 +2,6 @@ module Docproof
   class PaymentProcessor
     require 'docproof/payment_processor/coinbase'
 
-    class MissingDependency < Error; end
-    class MissingCredentials < Error; end
-
     BTC_IN_SATOSHIS      = 100_000_000
     MINIMUM_PRICE_IN_BTC = 0.005
 

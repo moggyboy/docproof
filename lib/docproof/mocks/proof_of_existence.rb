@@ -1,3 +1,5 @@
+require 'docproof/mocks/helper_methods'
+
 module Docproof
   module Mocks
     module ProofOfExistence
