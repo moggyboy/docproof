@@ -46,7 +46,7 @@ module Docproof
       unless response
         begin
           register!
-        rescue
+        rescue Docproof::Document::Existed
           lookup!
         end
       end
