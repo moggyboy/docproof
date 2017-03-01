@@ -43,6 +43,14 @@ module Docproof
     end
 
     def notarize!
+      unless response
+        begin
+          register!
+        rescue
+          lookup!
+        end
+      end
+
       if response['tx']
         raise AlreadyNotarized, "\"#{sha256_hash}\" is already notarized."
       end
