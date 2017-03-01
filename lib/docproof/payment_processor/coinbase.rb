@@ -1,34 +1,47 @@
+require 'coinbase/wallet'
+
 module Docproof
   class PaymentProcessor
     class Coinbase
+      class MissingCredentials < ::Docproof::Error; end
+
       class Configuration
-        attr_accessor :api_key,
-                      :api_secret
+        attr_reader :api_key, :api_secret, :account_id
 
-        def initialize
-          @api_key    = ENV['COINBASE_API_KEY']
-          @api_secret = ENV['COINBASE_API_SECRET']
+        def initialize(api_key: nil, api_secret: nil, account_id: nil)
+          self.api_key = api_key || ENV['COINBASE_API_KEY']
+          self.api_secret = api_secret || ENV['COINBASE_API_SECRET']
+          self.account_id = account_id || ENV['COINBASE_ACCOUNT_ID']
         end
+
+        private
+
+        attr_writer :api_key, :api_secret, :account_id
       end
 
-      attr_reader :recipient,
-                  :amount
+      attr_reader :recipient, :amount
 
-      def self.configuration
-        @configuration ||= Configuration.new
+      def self.configure(api_key: nil, api_secret: nil, account_id: nil)
+        @configuration = Configuration.new(api_key: api_key,
+                                           api_secret: api_secret,
+                                           account_id: account_id)
       end
 
-      def self.configuration=(config)
-        @configuration = config
+      def self.clear_configuration
+        @configuration = Configuration.new
       end
 
+      class << self
+        attr_reader :configuration
 
-      def self.configure
-        yield configuration
+        private
+
+        attr_writer :configuration
       end
 
       def initialize(recipient:, amount:)
-        if !Coinbase.configuration.api_key || !Coinbase.configuration.api_secret
+        configuration = Coinbase.configuration || Configuration.new
+        if !configuration.api_key || !configuration.api_secret
           raise MissingCredentials, 'Coinbase API key and secret in not set'
         end
 
@@ -37,7 +50,7 @@ module Docproof
       end
 
       def perform!
-        coinbase_wallet_primary_account.send(
+        coinbase_wallet_account.send(
           to:       recipient,
           amount:   amount,
           currency: 'BTC'
@@ -46,17 +59,24 @@ module Docproof
 
       private
 
-        def coinbase_wallet_primary_account
-          require 'coinbase/wallet'
-
-          @coinbase_wallet_primary_account ||= ::Coinbase::Wallet::Client.new(
-            api_key:    Coinbase.configuration.api_key,
-            api_secret: Coinbase.configuration.api_secret
-          ).primary_account
-        rescue LoadError
-          raise MissingDependency,
-            'Coinbase is required, You can install it with: `gem install coinbase`'
+      def coinbase_client
+        @coinbase_client ||= begin
+          configuration = Coinbase.configuration
+          ::Coinbase::Wallet::Client.new(api_key: configuration.api_key,
+                                         api_secret: configuration.api_secret)
         end
+      end
+
+      def coinbase_wallet_account
+        @coinbase_wallet_account ||= begin
+          account_id = Coinbase.configuration.account_id
+          if account_id && account_id != ''
+            coinbase_client.account(account_id)
+          else
+            coinbase_client.primary_account
+          end
+        end
+      end
     end
   end
 end

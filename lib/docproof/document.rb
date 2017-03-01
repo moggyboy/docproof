@@ -1,6 +1,4 @@
 module Docproof
-  class Error < StandardError; end
-
   class Document
     class Existed < Error; end
     class Invalid < Error; end
